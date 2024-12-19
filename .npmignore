@@ -1,0 +1,10 @@
+# Ignore directories not needed in the published package
+assets/
+node_modules/
+tests/
+src/
+
+# Ignore other unwanted files
+*.log
+.DS_Store
+.env
