@@ -30,6 +30,7 @@ export function getAvailableChecks() {
     const recipe = [
         {
             name: "versestats::verse_stats",
+            readName: "Verse statistics",
             description: "Checks for empty, short and long verses",
             level: "minor",
             enabled: false,
@@ -39,18 +40,21 @@ export function getAvailableChecks() {
         },
         {
             name: "chapterverse::integrity_check",
+            readName: "Integrity check",
             description: "Checks for missing, duplicated, or out-of-order chapter/verse numbers",
             level: "major",
             enabled: false
         },
         {
             name: "textquality::repeated_words_whitespace",
+            readName: "Repeated words and whitespace",
             description: "Detects repeated words and excessive whitespace in verses",
             level: "minor",
             enabled: false
         },
         {
             name: "textquality::unmatched_punctuation",
+            readName: "Unmatched punctuation",
             description: "Checks for unmatched punctuation pairs like quotes, parentheses, or brackets",
             level: "minor",
             enabled: false

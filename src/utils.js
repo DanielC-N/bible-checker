@@ -253,48 +253,56 @@ export function detectRepeatedWordsAndWhitespace(target) {
 }
 
 /**
- * Detects unmatched punctuation pairs in verses (e.g., quotes, parentheses).
+ * Detects unmatched punctuation pairs across verses (e.g., quotes, parentheses).
  * @param {object} target - Parsed JSON object of the target text.
  * @returns {object} Report of unmatched punctuation issues.
  */
-export function detectUnmatchedPunctuation(target) {
+export function detectUnmatchedPunctuation(target, pair_punctuation_list=null) {
     const issues = [];
     const targetVerses = extractVerses(target);
 
-    const PAIR_PUNCTUATION = {
+    let PAIR_PUNCTUATION = {
         '(': ')',
         '[': ']',
         '{': '}',
         '"': '"',
     };
 
-    for (const [key, text] of Object.entries(targetVerses)) {
-        const stack = [];
-        const unmatched = [];
+    if(pair_punctuation_list !== null) {
+        PAIR_PUNCTUATION = pair_punctuation_list;
+    }
 
+    let stack = [];
+    let openVerse = null;
+
+    for (const [key, text] of Object.entries(targetVerses)) {
         for (const char of text) {
             if (PAIR_PUNCTUATION[char]) {
-                stack.push(char);
+                // Opening punctuation: push to stack
+                if (stack.length === 0) openVerse = key;
+                stack.push({ char, verse: key });
             } else if (Object.values(PAIR_PUNCTUATION).includes(char)) {
+                // Closing punctuation: check the stack
                 const last = stack.pop();
-                if (!last || PAIR_PUNCTUATION[last] !== char) {
-                    unmatched.push(char);
+                if (!last || PAIR_PUNCTUATION[last.char] !== char) {
+                    // Unmatched closing punctuation
+                    issues.push({
+                        verse: key,
+                        unmatched_punctuation: char,
+                        comment: `Unmatched closing punctuation: ${char}`
+                    });
                 }
             }
         }
+    }
 
-        // Any remaining items in stack are unmatched
-        while (stack.length > 0) {
-            unmatched.push(stack.pop());
-        }
-
-        if (unmatched.length > 0) {
-            issues.push({
-                verse: key,
-                unmatched_punctuation: unmatched.join(' '),
-                comment: `Unmatched punctuation found: ${unmatched.join(', ')}`
-            });
-        }
+    while (stack.length > 0) {
+        const unmatched = stack.pop();
+        issues.push({
+            verse: openVerse,
+            unmatched_punctuation: unmatched.char,
+            comment: `Unmatched opening punctuation: ${unmatched.char}`
+        });
     }
 
     return {

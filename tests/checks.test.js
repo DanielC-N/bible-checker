@@ -70,6 +70,6 @@ describe('Run Checks Functionality Tests', () => {
         const issue = punctuationCheck.issues.find(issue => issue.verse === '1:4');
         expect(issue).toBeDefined();
         expect(issue.unmatched_punctuation).toBe(']');
-        expect(issue.comment).toBe('Unmatched punctuation found: ]');
+        expect(issue.comment).toBe('Unmatched closing punctuation: ]');
     });
 });

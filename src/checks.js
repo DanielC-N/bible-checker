@@ -40,6 +40,7 @@ export function runChecks(source, target, recipe) {
         if (result?.issues?.length > 0) {
             report.push({
                 name: check.name,
+                readName: check.readName,
                 description: check.description,
                 level: check.level,
                 issues: result.issues,
