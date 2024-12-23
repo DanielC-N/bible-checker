@@ -1,6 +1,7 @@
 import { checks } from '../dist/index.js';
 import fs from 'fs';
 import path from 'path';
+import { USJHandler } from '../dist/USJHandler.js';
 
 describe('Run Checks Functionality Tests', () => {
     let sourceText, targetText, recipe;
@@ -45,7 +46,7 @@ describe('Run Checks Functionality Tests', () => {
     test('Detect consecutive repeated words and whitespace issues', () => {
         const result = checks(sourceText, targetText, recipe);
 
-        console.log("result.checks ==",result.checks);
+        // console.log("result.checks ==",result.checks);
         const repeatedWordsCheck = result.checks.find(c => c.name === 'textquality::repeated_words_whitespace');
         expect(repeatedWordsCheck).toBeDefined();
         expect(Array.isArray(repeatedWordsCheck.issues)).toBe(true);
@@ -71,5 +72,27 @@ describe('Run Checks Functionality Tests', () => {
         expect(issue).toBeDefined();
         expect(issue.unmatched_punctuation).toBe(']');
         expect(issue.comment).toBe('Unmatched closing punctuation: ]');
+    });
+
+    test('Detect unmatched punctuation issues for ACTS', () => {
+        let trgTxt =  fs.readFileSync(path.resolve(__dirname, './mock_data/ACT.json'), 'utf-8');
+        const result = checks(trgTxt, trgTxt, recipe);
+
+        const myUSJ = new USJHandler(JSON.parse(trgTxt));
+
+        console.log(`myUSJ.verse("9:36")`,myUSJ.verse("9:36"));
+        console.log(`result.checks`,JSON.stringify(result.checks, null, 4));
+
+        const punctuationCheck = result.checks.find(c => c.name === 'textquality::unmatched_punctuation');
+        expect(punctuationCheck).toBeDefined();
+        expect(Array.isArray(punctuationCheck.issues)).toBe(true);
+        expect(punctuationCheck.issues.length).toBeGreaterThan(0);
+
+        const issue = punctuationCheck.issues.find(issue => issue.verse === '1:4');
+        const lenIssues = punctuationCheck.issues.length;
+        expect(issue).toBeDefined();
+        expect(lenIssues).toBe(1);
+        expect(issue.unmatched_punctuation).toBe('(');
+        expect(issue.comment).toBe('Unmatched opening punctuation: (');
     });
 });

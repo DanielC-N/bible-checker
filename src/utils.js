@@ -112,14 +112,14 @@ export function detectShortLongVerses(source, target, threshold = 20) {
             });
         } else if (sourceLength > 0 && targetLength > 0) {
             // Detect short or long verses
-            const diffPercentage = ((targetLength - sourceLength) / sourceLength) * 100;
+            const diffPercentage = ((Math.abs(targetLength - sourceLength)) / sourceLength) * 100;
 
             if (Math.abs(diffPercentage) > threshold) {
                 issues.push({
                     source_verse: key,
                     source_length: sourceLength,
                     target_length: targetLength,
-                    difference: parseFloat(diffPercentage.toFixed(2)),
+                    difference: `${parseFloat(diffPercentage.toFixed(2))}%`,
                     comment: diffPercentage > 0
                         ? 'Target verse is too long compared to source.'
                         : 'Target verse is too short compared to source.'
@@ -158,7 +158,7 @@ export function checkChapterVerseIntegrity(source, target) {
                 issues.push({
                     type: 'out_of_order',
                     chapter,
-                    message: `${textType} has out-of-order chapter ${chapter}.`
+                    comment: `${textType} has out-of-order chapter ${chapter}.`
                 });
             }
             lastChapter = chapter;
@@ -169,7 +169,7 @@ export function checkChapterVerseIntegrity(source, target) {
                         type: 'out_of_order',
                         chapter,
                         verse,
-                        message: `${textType} has out-of-order verse ${verse} in chapter ${chapter}.`
+                        comment: `${textType} has out-of-order verse ${verse} in chapter ${chapter}.`
                     });
                 }
                 if (seen.has(`${chapter}:${verse}`)) {
@@ -177,7 +177,7 @@ export function checkChapterVerseIntegrity(source, target) {
                         type: 'duplicate',
                         chapter,
                         verse,
-                        message: `${textType} has duplicate verse ${verse} in chapter ${chapter}.`
+                        comment: `${textType} has duplicate verse ${verse} in chapter ${chapter}.`
                     });
                 }
                 seen.add(`${chapter}:${verse}`);
@@ -198,7 +198,7 @@ export function checkChapterVerseIntegrity(source, target) {
                 type: 'missing',
                 chapter: parseInt(chapter, 10),
                 verse: missingVerse,
-                message: `Target is missing verse ${missingVerse} in chapter ${chapter}.`
+                comment: `Target is missing verse ${missingVerse} in chapter ${chapter}.`
             });
         }
     }
@@ -235,13 +235,21 @@ export function detectRepeatedWordsAndWhitespace(target) {
             }
         }
 
-        if (consecutiveRepeats.length > 0 || excessiveWhitespace) {
+        if (consecutiveRepeats.length > 0) {
             issues.push({
                 verse: key,
                 repeated_words: consecutiveRepeats,
                 positions: positions,
                 whitespace_issue: excessiveWhitespace,
-                comment: `Consecutive repeated words: ${[...new Set(consecutiveRepeats)].join(', ')}${excessiveWhitespace ? ' | Excessive whitespace detected' : ''}`,
+                comment: `Consecutive repeated words: ${[...new Set(consecutiveRepeats)].join(', ')}`,
+            });
+        } else if (excessiveWhitespace) {
+            issues.push({
+                verse: key,
+                repeated_words: consecutiveRepeats,
+                positions: positions,
+                whitespace_issue: excessiveWhitespace,
+                comment: "Excessive whitespace detected",
             });
         }
     }
@@ -255,59 +263,110 @@ export function detectRepeatedWordsAndWhitespace(target) {
 /**
  * Detects unmatched punctuation pairs across verses (e.g., quotes, parentheses).
  * @param {object} target - Parsed JSON object of the target text.
+ * @param {object|null} pair_punctuation_list - Optional custom punctuation pairs.
  * @returns {object} Report of unmatched punctuation issues.
  */
-export function detectUnmatchedPunctuation(target, pair_punctuation_list=null) {
+export function detectUnmatchedPunctuation(target, pair_punctuation_list = null) {
     const issues = [];
     const targetVerses = extractVerses(target);
 
+    // Define default punctuation pairs or use provided ones
     let PAIR_PUNCTUATION = {
         '(': ')',
         '[': ']',
         '{': '}',
-        '"': '"',
+        '«': '»',
+        // '"': '"',
+        // "'": "'",
     };
 
-    if(pair_punctuation_list !== null) {
+    if (pair_punctuation_list !== null) {
         PAIR_PUNCTUATION = pair_punctuation_list;
     }
 
-    let stack = [];
-    let openVerse = null;
+    let stack = []; // Shared stack for punctuation tracking
+    let toggles = {}; // Toggles for characters that are the same for opening and closing
+    let openVerse = null; // Keeps track of the verse where punctuation started
+
+    // Initialize toggles for symmetric punctuation
+    for (const char of Object.keys(PAIR_PUNCTUATION)) {
+        if (PAIR_PUNCTUATION[char] === char) {
+            toggles[char] = false; // False means "not inside"
+        }
+    }
 
     for (const [key, text] of Object.entries(targetVerses)) {
         for (const char of text) {
             if (PAIR_PUNCTUATION[char]) {
-                // Opening punctuation: push to stack
-                if (stack.length === 0) openVerse = key;
-                stack.push({ char, verse: key });
+                if (PAIR_PUNCTUATION[char] === char) {
+                    // Handle symmetric punctuation using toggles
+                    toggles[char] = !toggles[char];
+                    if (toggles[char]) {
+                        // Entering a symmetric punctuation
+                        if (stack.length === 0) openVerse = key;
+                        stack.push({ char, verse: key });
+                    } else {
+                        // Exiting a symmetric punctuation
+                        const last = stack.pop();
+                        if (!last || last.char !== char) {
+                            issues.push({
+                                verse: key,
+                                unmatched_punctuation: char,
+                                comment: `Unmatched closing punctuation: ${char}`,
+                            });
+                        // } else if (last.verse !== key) {
+                        //     issues.push({
+                        //         verse: `${last.verse} - ${key}`,
+                        //         unmatched_punctuation: last.char,
+                        //         comment: `Punctuation "${last.char}" started in verse ${last.verse} and matched in verse ${key}.`,
+                        //     });
+                        }
+                    }
+                } else {
+                    // Handle asymmetric punctuation (e.g., (), {}, etc.)
+                    if (stack.length === 0) openVerse = key;
+                    stack.push({ char, verse: key });
+                }
             } else if (Object.values(PAIR_PUNCTUATION).includes(char)) {
-                // Closing punctuation: check the stack
+                // Handle closing punctuation
                 const last = stack.pop();
                 if (!last || PAIR_PUNCTUATION[last.char] !== char) {
                     // Unmatched closing punctuation
                     issues.push({
                         verse: key,
                         unmatched_punctuation: char,
-                        comment: `Unmatched closing punctuation: ${char}`
+                        comment: `Unmatched closing punctuation: ${char}`,
                     });
+                // } else if (last.verse !== key) {
+                //     // Matched punctuation spanning multiple verses
+                //     issues.push({
+                //         verse: `${last.verse} - ${key}`,
+                //         unmatched_punctuation: last.char,
+                //         comment: `Punctuation "${last.char}" started in verse ${last.verse} and matched in verse ${key}.`,
+                //     });
                 }
             }
         }
     }
 
-    while (stack.length > 0) {
-        const unmatched = stack.pop();
-        issues.push({
-            verse: openVerse,
-            unmatched_punctuation: unmatched.char,
-            comment: `Unmatched opening punctuation: ${unmatched.char}`
-        });
+    // Remaining unmatched opening punctuation in the stack
+    if (stack.length > 0) {
+        const unmatchedSet = new Set();
+        while (stack.length > 0) {
+            const unmatched = stack.pop();
+            if (!unmatchedSet.has(unmatched.char)) {
+                unmatchedSet.add(unmatched.char);
+                issues.push({
+                    verse: openVerse,
+                    unmatched_punctuation: unmatched.char,
+                    comment: `Unmatched opening punctuation: ${unmatched.char}`,
+                });
+            }
+        }
     }
 
     return {
         check: 'unmatched_punctuation',
-        issues
+        issues,
     };
 }
-
