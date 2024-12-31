@@ -40,10 +40,15 @@ export function getAvailableChecks() {
         },
         {
             name: "chapterverse::integrity_check",
-            readName: "Integrity check",
-            description: "Checks for missing, duplicated, or out-of-order chapter/verse numbers",
+            description: "Checks for duplicated or out-of-order chapter/verse numbers.",
             level: "major",
-            enabled: false
+            enabled: false,
+        },
+        {
+            name: "chapterverse::missing_verses",
+            description: "Detects missing verses in the target compared to the source.",
+            level: "major",
+            enabled: false,
         },
         {
             name: "textquality::repeated_words_whitespace",

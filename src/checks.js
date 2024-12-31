@@ -23,6 +23,10 @@ export function runChecks(source, target, recipe) {
                 result = checkChapterVerseIntegrity(source, target);
                 break;
 
+            case 'chapterverse::missing_verses':
+                result = detectMissingVerses(source, target);
+                break;
+
             case 'textquality::repeated_words_whitespace':
                 result = detectRepeatedWordsAndWhitespace(target);
                 break;

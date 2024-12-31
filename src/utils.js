@@ -96,7 +96,7 @@ export function detectShortLongVerses(source, target, threshold = 20) {
         // Detect empty source or target verses
         if (sourceLength === 0 && targetLength > 0) {
             issues.push({
-                source_verse: key,
+                verse: key,
                 source_length: sourceLength,
                 target_length: targetLength,
                 difference: null,
@@ -104,7 +104,7 @@ export function detectShortLongVerses(source, target, threshold = 20) {
             });
         } else if (sourceLength > 0 && targetLength === 0) {
             issues.push({
-                source_verse: key,
+                verse: key,
                 source_length: sourceLength,
                 target_length: targetLength,
                 difference: null,
@@ -112,14 +112,14 @@ export function detectShortLongVerses(source, target, threshold = 20) {
             });
         } else if (sourceLength > 0 && targetLength > 0) {
             // Detect short or long verses
-            const diffPercentage = ((Math.abs(targetLength - sourceLength)) / sourceLength) * 100;
+            const diffPercentage = ((targetLength - sourceLength) / sourceLength) * 100;
 
             if (Math.abs(diffPercentage) > threshold) {
                 issues.push({
-                    source_verse: key,
+                    verse: key,
                     source_length: sourceLength,
                     target_length: targetLength,
-                    difference: `${parseFloat(diffPercentage.toFixed(2))}%`,
+                    difference: `${parseFloat(Math.abs(diffPercentage).toFixed(2))}%`,
                     comment: diffPercentage > 0
                         ? 'Target verse is too long compared to source.'
                         : 'Target verse is too short compared to source.'
@@ -135,7 +135,7 @@ export function detectShortLongVerses(source, target, threshold = 20) {
 }
 
 /**
- * Checks for missing, duplicated, or out-of-order chapter/verse numbers.
+ * Checks for duplicated or out-of-order chapter/verse numbers.
  * @param {object} source - Parsed JSON object of the source text.
  * @param {object} target - Parsed JSON object of the target text.
  * @returns {object} Report of chapter/verse integrity issues.
@@ -145,7 +145,6 @@ export function checkChapterVerseIntegrity(source, target) {
     const sourceChapters = extractChapterVerses(source);
     const targetChapters = extractChapterVerses(target);
 
-    // Helper to validate order and duplication
     function validateIntegrity(chapterVerses, textType) {
         const seen = new Set();
         let lastChapter = 0;
@@ -154,11 +153,12 @@ export function checkChapterVerseIntegrity(source, target) {
         for (let [chapter, verses] of Object.entries(chapterVerses)) {
             lastVerse = 0;
             chapter = parseInt(chapter, 10);
+
             if (chapter < lastChapter) {
                 issues.push({
                     type: 'out_of_order',
                     chapter,
-                    comment: `${textType} has out-of-order chapter ${chapter}.`
+                    comment: `${textType} has out-of-order chapter ${chapter}.`,
                 });
             }
             lastChapter = chapter;
@@ -169,7 +169,7 @@ export function checkChapterVerseIntegrity(source, target) {
                         type: 'out_of_order',
                         chapter,
                         verse,
-                        comment: `${textType} has out-of-order verse ${verse} in chapter ${chapter}.`
+                        comment: `${textType} has out-of-order verse ${verse} in chapter ${chapter}.`,
                     });
                 }
                 if (seen.has(`${chapter}:${verse}`)) {
@@ -177,7 +177,7 @@ export function checkChapterVerseIntegrity(source, target) {
                         type: 'duplicate',
                         chapter,
                         verse,
-                        comment: `${textType} has duplicate verse ${verse} in chapter ${chapter}.`
+                        comment: `${textType} has duplicate verse ${verse} in chapter ${chapter}.`,
                     });
                 }
                 seen.add(`${chapter}:${verse}`);
@@ -189,26 +189,41 @@ export function checkChapterVerseIntegrity(source, target) {
     validateIntegrity(sourceChapters, 'Source');
     validateIntegrity(targetChapters, 'Target');
 
-    // Detect missing verses in target
+    return {
+        check: 'chapter_verse_integrity',
+        issues,
+    };
+}
+
+/**
+ * Detects missing verses in the target compared to the source.
+ * @param {object} source - Parsed JSON object of the source text.
+ * @param {object} target - Parsed JSON object of the target text.
+ * @returns {object} Report of missing verses.
+ */
+export function detectMissingVerses(source, target) {
+    const issues = [];
+    const sourceChapters = extractChapterVerses(source);
+    const targetChapters = extractChapterVerses(target);
+
     for (const [chapter, verses] of Object.entries(sourceChapters)) {
         const targetVerses = targetChapters[chapter] || [];
         const missingVerses = verses.filter((verse) => !targetVerses.includes(verse));
+
         for (const missingVerse of missingVerses) {
             issues.push({
-                type: 'missing',
                 chapter: parseInt(chapter, 10),
                 verse: missingVerse,
-                comment: `Target is missing verse ${missingVerse} in chapter ${chapter}.`
+                comment: `Target is missing verse ${missingVerse} in chapter ${chapter}.`,
             });
         }
     }
 
     return {
-        check: 'chapter_verse_integrity',
-        issues
+        check: 'missing_verses',
+        issues,
     };
 }
-
 
 /**
  * Detects consecutive repeated words and excessive whitespace in verses.
@@ -222,7 +237,8 @@ export function detectRepeatedWordsAndWhitespace(target) {
     for (const [key, text] of Object.entries(targetVerses)) {
         const words = text.split(/\s+/);
         const consecutiveRepeats = [];
-        const positions = [];
+        const repeatPositions = [];
+        const whitespacePositions = [];
         let excessiveWhitespace = /\s{2,}/.test(text);
 
         // Detect consecutive repeated words with positions
@@ -231,25 +247,28 @@ export function detectRepeatedWordsAndWhitespace(target) {
             const nextWord = words[i + 1].toLowerCase().replace(/[.,!?"()]/g, '');
             if (currentWord && currentWord === nextWord) {
                 consecutiveRepeats.push(currentWord);
-                positions.push(i);
+                repeatPositions.push(i);
             }
         }
 
-        if (consecutiveRepeats.length > 0) {
+        // Detect excessive whitespaces with positions
+        if (excessiveWhitespace) {
+            const matches = [...text.matchAll(/\s{2,}/g)];
+            for (const match of matches) {
+                whitespacePositions.push(match.index);
+            }
+        }
+
+        if (consecutiveRepeats.length > 0 || excessiveWhitespace) {
             issues.push({
                 verse: key,
                 repeated_words: consecutiveRepeats,
-                positions: positions,
+                positions: repeatPositions,
+                whitespace_positions: whitespacePositions,
                 whitespace_issue: excessiveWhitespace,
-                comment: `Consecutive repeated words: ${[...new Set(consecutiveRepeats)].join(', ')}`,
-            });
-        } else if (excessiveWhitespace) {
-            issues.push({
-                verse: key,
-                repeated_words: consecutiveRepeats,
-                positions: positions,
-                whitespace_issue: excessiveWhitespace,
-                comment: "Excessive whitespace detected",
+                comment: consecutiveRepeats.length > 0
+                    ? `Consecutive repeated words: ${[...new Set(consecutiveRepeats)].join(', ')}`
+                    : "Excessive whitespace detected",
             });
         }
     }

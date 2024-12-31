@@ -43,22 +43,36 @@ describe('Run Checks Functionality Tests', () => {
         ];
     });
 
-    test('Detect consecutive repeated words and whitespace issues', () => {
+    test('Detect excessive whitespace issues', () => {
         const result = checks(sourceText, targetText, recipe);
-
-        // console.log("result.checks ==",result.checks);
+    
         const repeatedWordsCheck = result.checks.find(c => c.name === 'textquality::repeated_words_whitespace');
         expect(repeatedWordsCheck).toBeDefined();
         expect(Array.isArray(repeatedWordsCheck.issues)).toBe(true);
-        expect(repeatedWordsCheck.issues.length).toBeGreaterThan(0);
+    
+        const issue = repeatedWordsCheck.issues.find(issue => issue.verse === '1:4');
+        expect(issue).toBeDefined();
+        expect(issue.repeated_words).toHaveLength(0); // No repeated words
+        expect(issue.positions).toHaveLength(0); // No repeated word positions
+        expect(issue.whitespace_positions).toContain(155);
+        expect(issue.whitespace_issue).toBe(true);
+        expect(issue.comment).toBe('Excessive whitespace detected');
+    });
 
+    test('Detect consecutive repeated words', () => {
+        const result = checks(sourceText, targetText, recipe);
+    
+        const repeatedWordsCheck = result.checks.find(c => c.name === 'textquality::repeated_words_whitespace');
+        expect(repeatedWordsCheck).toBeDefined();
+        expect(Array.isArray(repeatedWordsCheck.issues)).toBe(true);
+    
         const issue = repeatedWordsCheck.issues.find(issue => issue.verse === '3:3');
         expect(issue).toBeDefined();
         expect(issue.repeated_words).toContain('nous');
         expect(issue.positions).toContain(59);
         expect(issue.whitespace_issue).toBe(false);
         expect(issue.comment).toBe('Consecutive repeated words: nous');
-    });
+    });    
 
     test('Detect unmatched punctuation issues', () => {
         const result = checks(sourceText, targetText, recipe);
@@ -80,8 +94,8 @@ describe('Run Checks Functionality Tests', () => {
 
         const myUSJ = new USJHandler(JSON.parse(trgTxt));
 
-        console.log(`myUSJ.verse("9:36")`,myUSJ.verse("9:36"));
-        console.log(`result.checks`,JSON.stringify(result.checks, null, 4));
+        // console.log(`myUSJ.verse("9:36")`,myUSJ.verse("9:36"));
+        // console.log(`result.checks`,JSON.stringify(result.checks, null, 4));
 
         const punctuationCheck = result.checks.find(c => c.name === 'textquality::unmatched_punctuation');
         expect(punctuationCheck).toBeDefined();
