@@ -1,4 +1,10 @@
-import { detectShortLongVerses, checkChapterVerseIntegrity, detectRepeatedWordsAndWhitespace, detectUnmatchedPunctuation } from './utils.js';
+import {
+    detectShortLongVerses,
+    checkChapterVerseIntegrity,
+    detectRepeatedWordsAndWhitespace,
+    detectUnmatchedPunctuation,
+    detectMissingVerses
+} from './utils.js';
 
 /**
  * Run all checks based on the provided recipe.
