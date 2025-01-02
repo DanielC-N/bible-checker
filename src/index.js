@@ -40,12 +40,14 @@ export function getAvailableChecks() {
         },
         {
             name: "chapterverse::integrity_check",
+            readName: "Duplicated or out-of-order chapter/verse",
             description: "Checks for duplicated or out-of-order chapter/verse numbers.",
             level: "major",
             enabled: false,
         },
         {
             name: "chapterverse::missing_verses",
+            readName: "Missing verses",
             description: "Detects missing verses in the target compared to the source.",
             level: "major",
             enabled: false,
