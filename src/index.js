@@ -65,7 +65,15 @@ export function getAvailableChecks() {
             description: "Checks for unmatched punctuation pairs like quotes, parentheses, or brackets",
             level: "minor",
             enabled: false
-        }
+        },
+        {
+            name: "numbers_check::mismatches",
+            readName: "Missing numbers",
+            description: "Checks if numbers from the source are correctly reported in the target.",
+            level: "major",
+            enabled: false,
+        },
+        
     ];
 
     return recipe;

@@ -92,7 +92,7 @@ describe('Run Checks Functionality Tests', () => {
         let trgTxt =  fs.readFileSync(path.resolve(__dirname, './mock_data/ACT.json'), 'utf-8');
         const result = checks(trgTxt, trgTxt, recipe);
 
-        const myUSJ = new USJHandler(JSON.parse(trgTxt));
+        // const myUSJ = new USJHandler(JSON.parse(trgTxt));
 
         // console.log(`myUSJ.verse("9:36")`,myUSJ.verse("9:36"));
         // console.log(`result.checks`,JSON.stringify(result.checks, null, 4));
@@ -108,5 +108,36 @@ describe('Run Checks Functionality Tests', () => {
         expect(lenIssues).toBe(1);
         expect(issue.unmatched_punctuation).toBe('(');
         expect(issue.comment).toBe('Unmatched opening punctuation: (');
+    });
+
+    test('Detect mismatched numbers between source and target', () => {
+        recipe = [
+            {
+                name: "numbers_check::mismatches",
+                readName: "Missing numbers",
+                description: "Checks if numbers from the source are correctly reported in the target.",
+                level: "major",
+                enabled: true,
+            }
+        ];
+
+        let trgTxt =  fs.readFileSync(path.resolve(__dirname, './mock_data/test_target_numbers.json'), 'utf-8');
+        let srcTxt =  fs.readFileSync(path.resolve(__dirname, './mock_data/test_source_numbers.json'), 'utf-8');
+
+        const result = checks(srcTxt, trgTxt, recipe);
+
+        const check = result.checks[0];
+
+        expect(result).toBeDefined();
+        expect(check.name).toBe('numbers_check::mismatches');
+        expect(check.issues).toBeInstanceOf(Array);
+        expect(check.issues.length).toBe(1);
+    
+        const issue = check.issues[0];
+        expect(issue.verse).toBe('1:1');
+        expect(issue.missing_numbers).toEqual([{ number: "42", position: 61 }]);
+        expect(issue.extra_numbers).toEqual([{ number: "99", position: 61 }]);
+        expect(issue.comment).toBe("Number mismatches detected. Missing: [42], Extra: [99]");
+    
     });
 });

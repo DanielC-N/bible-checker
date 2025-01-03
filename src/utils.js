@@ -1,5 +1,28 @@
 import { USJHandler } from './USJHandler.js';
 
+const numeralMapping = {
+    // Arabic and Eastern Arabic numerals
+    "0": ["0", "٠"],
+    "1": ["1", "١"],
+    "2": ["2", "٢"],
+    "3": ["3", "٣"],
+    "4": ["4", "٤"],
+    "5": ["5", "٥"],
+    "6": ["6", "٦"],
+    "7": ["7", "٧"],
+    "8": ["8", "٨"],
+    "9": ["9", "٩"],
+};
+
+export function normalizeNumber(symbol) {
+    for (const [normalized, variants] of Object.entries(numeralMapping)) {
+        if (variants.includes(symbol)) {
+            return normalized;
+        }
+    }
+    return null;
+}
+
 /**
  * Extracts verses from the USJ JSON format while skipping metadata like 'w' and 'zaln-*'.
  * @param {object} usj - Parsed USJ JSON object.
@@ -70,6 +93,11 @@ export function extractChapterVerses(text) {
     });
 
     return chapters;
+}
+
+export function extractNumbers(text) {
+    const numberRegex = /[\d٠-٩]/g;
+    return [...text.matchAll(numberRegex)].map((match) => normalizeNumber(match[0])).filter(Boolean);
 }
 
 /**
@@ -387,5 +415,63 @@ export function detectUnmatchedPunctuation(target, pair_punctuation_list = null)
     return {
         check: 'unmatched_punctuation',
         issues,
+    };
+}
+
+/**
+ * Detects number mismatches between source and target verses.
+ * @param {object} source - Parsed JSON object of the source text.
+ * @param {object} target - Parsed JSON object of the target text.
+ * @returns {object} Report of number mismatches.
+ */
+export function detectNumberMismatches(source, target) {
+    const issues = [];
+    const sourceVerses = extractVerses(source);
+    const targetVerses = extractVerses(target);
+
+    console.log("sourceVerses", sourceVerses);
+    console.log("targetVerses", targetVerses);
+
+    // match whole numbers
+    const numberRegex = /\b\d+\b/g;
+
+    for (const [verseKey, sourceText] of Object.entries(sourceVerses)) {
+        const sourceNumbers = [...sourceText.matchAll(numberRegex)].map(match => ({
+            number: match[0],
+            position: match.index
+        }));
+
+        const targetText = targetVerses[verseKey] || '';
+        const targetNumbers = [...targetText.matchAll(numberRegex)].map(match => ({
+            number: match[0],
+            position: match.index
+        }));
+
+        const sourceNumberSet = new Set(sourceNumbers.map(item => item.number));
+        const targetNumberSet = new Set(targetNumbers.map(item => item.number));
+
+        // Identify missing and extra numbers
+        const missingNumbers = [...sourceNumberSet].filter(num => !targetNumberSet.has(num));
+        const extraNumbers = [...targetNumberSet].filter(num => !sourceNumberSet.has(num));
+
+        if (missingNumbers.length > 0 || extraNumbers.length > 0) {
+            issues.push({
+                verse: verseKey,
+                missing_numbers: missingNumbers.map(num => ({
+                    number: num,
+                    position: sourceNumbers.find(item => item.number === num)?.position || -1
+                })),
+                extra_numbers: extraNumbers.map(num => ({
+                    number: num,
+                    position: targetNumbers.find(item => item.number === num)?.position || -1
+                })),
+                comment: `Number mismatches detected. Missing: [${missingNumbers.join(', ')}], Extra: [${extraNumbers.join(', ')}]`
+            });
+        }
+    }
+
+    return {
+        check: 'numbers_check::mismatches',
+        issues
     };
 }

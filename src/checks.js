@@ -3,7 +3,8 @@ import {
     checkChapterVerseIntegrity,
     detectRepeatedWordsAndWhitespace,
     detectUnmatchedPunctuation,
-    detectMissingVerses
+    detectMissingVerses,
+    detectNumberMismatches
 } from './utils.js';
 
 /**
@@ -41,8 +42,10 @@ export function runChecks(source, target, recipe) {
                 result = detectUnmatchedPunctuation(target);
                 break;
 
-            // Add additional checks here as needed
-
+            case "numbers_check::mismatches":
+                result = detectNumberMismatches(source, target);
+                break;
+                
             default:
                 console.warn(`Unknown check: ${check.name}`);
                 continue;
