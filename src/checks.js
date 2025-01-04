@@ -4,7 +4,8 @@ import {
     detectRepeatedWordsAndWhitespace,
     detectUnmatchedPunctuation,
     detectMissingVerses,
-    detectNumberMismatches
+    detectNumberMismatches,
+    detectFootnoteQuotes
 } from './utils.js';
 
 /**
@@ -44,6 +45,10 @@ export function runChecks(source, target, recipe) {
 
             case "numbers_check::mismatches":
                 result = detectNumberMismatches(source, target);
+                break;
+            
+            case "footnote::quotation_mismatch":
+                result = detectFootnoteQuotes(target);
                 break;
                 
             default:

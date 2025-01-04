@@ -15,8 +15,6 @@
 
 ---
 
-## **Available checks**
-
 ## **Available Checks**
 
 | **Name**                                 | **Description**                                                                 | **Level**  |
@@ -25,6 +23,9 @@
 | `chapterverse::integrity_check`          | Verifies chapter/verse integrity (missing, duplicated, or out-of-order).        | `major`   |
 | `textquality::repeated_words_whitespace` | Detects consecutive repeated words and excessive whitespace issues.             | `minor`   |
 | `textquality::unmatched_punctuation`     | Finds unmatched punctuation pairs such as quotes, parentheses, and brackets.    | `minor`   |
+| `chapterverse::missing_verses`           | Identifies verses that are missing in the target compared to the source text.   | `major`   |
+| `numbers_check::mismatches`              | Checks for mismatched numbers between the source and target text.               | `minor`   |
+| `textquality::unmatched_punctuation`     | Verifies the consistency of quoted text in footnotes against main text.         | `minor`   |
 
 
 ## Installation

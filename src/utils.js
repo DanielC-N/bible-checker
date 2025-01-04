@@ -71,7 +71,6 @@ export function extractVerses(usj) {
     return verses;
 }
 
-
 /**
  * Extracts chapter and verse numbers from USJ content.
  * @param {object} text - USJ JSON object.
@@ -108,9 +107,11 @@ export function extractNumbers(text) {
  * @returns {object} Report of short/long verses and empty verses.
  */
 export function detectShortLongVerses(source, target, threshold = 20) {
+    const handlerSrc = new USJHandler(source);
+    const handlerTgt = new USJHandler(target);
     const issues = [];
-    const sourceVerses = extractVerses(source);
-    const targetVerses = extractVerses(target);
+    const sourceVerses = handlerSrc.extractVerses();
+    const targetVerses = handlerTgt.extractVerses();
 
     for (const [key, sourceText] of Object.entries(sourceVerses)) {
         const targetText = targetVerses[key] || '';
@@ -169,11 +170,12 @@ export function detectShortLongVerses(source, target, threshold = 20) {
  * @returns {object} Report of chapter/verse integrity issues.
  */
 export function checkChapterVerseIntegrity(source, target) {
+    const handler = new USJHandler(target);
     const issues = [];
-    const sourceChapters = extractChapterVerses(source);
+    // const sourceChapters = extractChapterVerses(source);
     const targetChapters = extractChapterVerses(target);
-    const sourceVerses = extractVerses(source);
-    const targetVerses = extractVerses(target);
+    // const sourceVerses = extractVerses(source);
+    const targetVerses = handler.extractVerses();
 
     function validateIntegrity(chapterVerses, textType, verses) {
         const seen = new Set();
@@ -234,10 +236,11 @@ export function checkChapterVerseIntegrity(source, target) {
  * @returns {object} Report of missing verses.
  */
 export function detectMissingVerses(source, target) {
+    const handlerSrc = new USJHandler(source);
     const issues = [];
     const sourceChapters = extractChapterVerses(source);
     const targetChapters = extractChapterVerses(target);
-    const sourceVerses = extractVerses(source);
+    const sourceVerses = handlerSrc.extractVerses();
 
     for (const [chapter, verses] of Object.entries(sourceChapters)) {
         const targetVerses = targetChapters[chapter] || [];
@@ -266,8 +269,9 @@ export function detectMissingVerses(source, target) {
  * @returns {object} Report of consecutive repeated words or whitespace issues.
  */
 export function detectRepeatedWordsAndWhitespace(target) {
+    const handlerSrc = new USJHandler(target);
     const issues = [];
-    const targetVerses = extractVerses(target);
+    const targetVerses = handlerSrc.extractVerses();
 
     for (const [key, text] of Object.entries(targetVerses)) {
         const words = text.split(/\s+/);
@@ -321,8 +325,9 @@ export function detectRepeatedWordsAndWhitespace(target) {
  * @returns {object} Report of unmatched punctuation issues.
  */
 export function detectUnmatchedPunctuation(target, pair_punctuation_list = null) {
+    const handlerSrc = new USJHandler(target);
     const issues = [];
-    const targetVerses = extractVerses(target);
+    const targetVerses = handlerSrc.extractVerses();
 
     // Define default punctuation pairs or use provided ones
     let PAIR_PUNCTUATION = {
@@ -432,9 +437,11 @@ export function detectUnmatchedPunctuation(target, pair_punctuation_list = null)
  * @returns {object} Report of number mismatches.
  */
 export function detectNumberMismatches(source, target) {
+    const handlerSrc = new USJHandler(source);
+    const handlerTgt = new USJHandler(target);
     const issues = [];
-    const sourceVerses = extractVerses(source);
-    const targetVerses = extractVerses(target);
+    const sourceVerses = handlerSrc.extractVerses();
+    const targetVerses = handlerTgt.extractVerses();
 
     const numberRegex = /\b\d+\b/g;
 
@@ -476,5 +483,47 @@ export function detectNumberMismatches(source, target) {
     return {
         check: 'numbers_check::mismatches',
         issues
+    };
+}
+
+/**
+ * Detects if quoted text in footnotes exists in the target translation.
+ * @param {object} target - Parsed USJ JSON object of the target text.
+ * @returns {object} Report of missing or unmatched quotations.
+ */
+export function detectFootnoteQuotes(target) {
+    const handler = new USJHandler(target);
+
+    const issues = [];
+    const verses = handler.extractVerses();
+    const footnotes = handler.extractFootnotes();
+
+    for (const { content, reference } of footnotes) {
+        const quotedTexts = handler.extractQuotedText(content);
+
+        const unmatchedQuotes = [];
+
+        for (const quote of quotedTexts) {
+            const foundInVerses = Object.values(verses).some((verseContent) => {
+                return verseContent.includes(quote);
+            }
+            );
+            if (!foundInVerses) {
+                unmatchedQuotes.push(quote);
+            }
+        }
+
+        if (unmatchedQuotes.length > 0) {
+            issues.push({
+                verse: reference,
+                unmatched_quotes: unmatchedQuotes,
+                comment: `Quoted text not found in the main text: ${unmatchedQuotes.join(', ')}`,
+            });
+        }
+    }
+
+    return {
+        check: 'footnote_quotations',
+        issues,
     };
 }

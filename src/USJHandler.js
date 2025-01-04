@@ -79,7 +79,7 @@ export class USJHandler {
             } else if (item.marker === 'v' && item.number && currentChapter >= startChapter && currentChapter <= endChapter) {
                 const verseNumber = parseInt(item.number, 10);
                 const inRange = verseNumber >= startVerse && verseNumber <= endVerse;
-                
+
                 collecting = inRange;
             }
             if (collecting && typeof item === 'string') {
@@ -125,6 +125,108 @@ export class USJHandler {
             }
         }
     }
+
+    /**
+     * Extracts all verses from the USJ JSON object, excluding footnotes and cross-references.
+     * @returns {object} Map of verse IDs to their cleaned text content.
+     */
+    extractVerses() {
+        const verses = {};
+        let currentChapter = null;
+        let currentVerse = null;
+        let currentContent = '';
+        let inFootnoteOrXref = false;
+
+        this.traverse(this.usj.content, (item) => {
+            // Handle chapter marker
+            if (item.marker === 'c' && item.number) {
+                currentChapter = item.number;
+                currentVerse = null;
+                currentContent = '';
+            }
+            // Handle verse marker
+            else if (item.marker === 'v' && item.number) {
+                if (currentChapter && currentVerse) {
+                    verses[`${currentChapter}:${currentVerse}`] = currentContent.trim();
+                }
+                currentVerse = item.number;
+                currentContent = '';
+            }
+            // Enter footnote or cross-reference marker
+            else if (item.marker === 'f' || item.marker === 'x') {
+                inFootnoteOrXref = true;
+            }
+            // Exit footnote or cross-reference marker
+            else if (inFootnoteOrXref && (item.marker === 'f*' || item.marker === 'x*')) {
+                inFootnoteOrXref = false;
+            }
+            // Add string content only if not in a footnote or cross-reference
+            else if (!inFootnoteOrXref && typeof item === 'string') {
+                if (!currentContent.endsWith(item)) {
+                    currentContent += item;
+                }
+            }
+            // Add word content (type: "char") if not in a footnote or cross-reference
+            else if (!inFootnoteOrXref && item.type === 'char' && Array.isArray(item.content)) {
+                const charContent = item.content.join('');
+                if (!currentContent.endsWith(charContent)) {
+                    currentContent += charContent;
+                }
+            }
+        });
+
+        // Capture the final verse after traversal
+        if (currentChapter && currentVerse) {
+            verses[`${currentChapter}:${currentVerse}`] = currentContent.trim();
+        }
+
+        return verses;
+    }
+
+    /**
+     * Extracts all footnotes from the USJ content along with their references.
+     * @returns {Array} Array of footnotes with their respective content and references.
+     */
+    extractFootnotes() {
+        const footnotes = [];
+        let currentChapter = null;
+        let currentVerse = null;
+
+        this.traverse(this.usj.content, (item) => {
+            if (item.marker === 'c' && item.number) {
+                currentChapter = item.number;
+            } else if (item.marker === 'v' && item.number) {
+                currentVerse = item.number;
+            } else if (item.marker === 'f' && item.type === 'note') {
+                footnotes.push({
+                    content: item.content,
+                    reference: `${currentChapter}:${currentVerse}`
+                });
+            }
+        });
+
+        return footnotes;
+    }
+
+    /**
+     * Extracts quoted text (fq or xq) from a footnote content array.
+     * @param {Array} content - Content array of the footnote.
+     * @returns {Array} Array of quoted text strings.
+     */
+    extractQuotedText(content) {
+        const quotes = [];
+
+        content.forEach((item) => {
+            if (item && typeof item === "object" && (item.marker === "fq" || item.marker === "xq")) {
+                quotes.push(item.content.join(" "));
+            } else if (Array.isArray(item)) {
+                quotes.push(...this.extractQuotedText(item));
+            }
+        });
+
+        return quotes;
+    }
+
 }
 
 // Export the USJHandler class

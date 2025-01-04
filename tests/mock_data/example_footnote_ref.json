@@ -1,0 +1,37 @@
+{
+  "type": "usj",
+  "content": [
+    {
+      "marker": "c",
+      "number": "1"
+    },
+    {
+      "marker": "v",
+      "number": "1"
+    },
+    "In the beginning, God created the heavens and the earth.",
+    {
+      "marker": "v",
+      "number": "2"
+    },
+    "The earth was formless and void, and darkness was over the surface of the deep.",
+    {
+      "marker": "v",
+      "number": "3"
+    },
+    "Then God said, 'Let there be light'; and there was light.",
+    {
+      "marker": "f",
+      "type": "note",
+      "content": [
+        {
+          "marker": "fq",
+          "content": [
+            "darkness was over the surface, in the deep"
+          ]
+        },
+        "is referenced in verse 1:2."
+      ]
+    }
+  ]
+}

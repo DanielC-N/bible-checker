@@ -4,11 +4,13 @@ import path from 'path';
 import { USJHandler } from '../dist/USJHandler.js';
 
 describe('Run Checks Functionality Tests', () => {
-    let sourceText, targetText, recipe;
+    let sourceText, targetText, recipe, targetTextFootnotes;
 
     beforeAll(() => {
         const targetFilePath = path.resolve(__dirname, './mock_data/SRC_FR_TIT.json');
         const sourceFilePath = path.resolve(__dirname, './mock_data/TAR_ENG_TITUS.json');
+        targetTextFootnotes = fs.readFileSync(path.resolve(__dirname, './mock_data/example_footnote_ref.json'), 'utf-8');
+
 
         sourceText = fs.readFileSync(sourceFilePath, 'utf8');
         targetText = fs.readFileSync(targetFilePath, 'utf8');
@@ -39,6 +41,13 @@ describe('Run Checks Functionality Tests', () => {
                 description: "Checks for unmatched punctuation pairs like quotes, parentheses, or brackets.",
                 level: "minor",
                 enabled: true
+            },
+            {
+                name: "footnote::quotation_mismatch",
+                readName: "Footnote quotation mismatch",
+                description: "Detects footnote quotations that do not match the main text or are missing words.",
+                level: "minor",
+                enabled: false
             }
         ];
     });
@@ -139,5 +148,30 @@ describe('Run Checks Functionality Tests', () => {
         expect(issue.extra_numbers).toEqual([{ number: "99", position: 61 }]);
         expect(issue.comment).toBe("Number mismatches detected. Missing: [42], Extra: [99]");
     
+    });
+
+    test('Detect mismatched footnote quotation', () => {
+        recipe = [
+            {
+                name: "footnote::quotation_mismatch",
+                readName: "Footnote quotation mismatch",
+                description: "Detects footnote quotations that do not match the main text or are missing words.",
+                level: "minor",
+                enabled: true
+            }
+        ];
+        const result = checks(targetTextFootnotes,targetTextFootnotes, recipe);
+
+        
+
+        const footnoteCheck = result.checks.find(c => c.name === 'footnote::quotation_mismatch');
+        expect(footnoteCheck).toBeDefined();
+        expect(Array.isArray(footnoteCheck.issues)).toBe(true);
+        const issue = footnoteCheck.issues.find(issue => issue.verse === '1:3');
+        expect(issue).toBeDefined();
+        expect(issue.unmatched_quotes).toContain("darkness was over the surface, in the deep");
+        expect(issue.comment).toBe(
+            "Quoted text not found in the main text: darkness was over the surface, in the deep"
+        );
     });
 });
