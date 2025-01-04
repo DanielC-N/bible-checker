@@ -109,9 +109,6 @@ export function extractNumbers(text) {
  */
 export function detectShortLongVerses(source, target, threshold = 20) {
     const issues = [];
-    // const sourceHandler = new USJHandler(source);
-    // const targetHandler = new USJHandler(target);
-
     const sourceVerses = extractVerses(source);
     const targetVerses = extractVerses(target);
 
@@ -127,6 +124,7 @@ export function detectShortLongVerses(source, target, threshold = 20) {
                 verse: key,
                 source_length: sourceLength,
                 target_length: targetLength,
+                verse_text: targetText,
                 difference: null,
                 comment: 'Source verse is empty, but target contains text.'
             });
@@ -135,6 +133,7 @@ export function detectShortLongVerses(source, target, threshold = 20) {
                 verse: key,
                 source_length: sourceLength,
                 target_length: targetLength,
+                verse_text: sourceText,
                 difference: null,
                 comment: 'Target verse is empty, but source contains text.'
             });
@@ -147,6 +146,7 @@ export function detectShortLongVerses(source, target, threshold = 20) {
                     verse: key,
                     source_length: sourceLength,
                     target_length: targetLength,
+                    verse_text: sourceText,
                     difference: `${parseFloat(Math.abs(diffPercentage).toFixed(2))}%`,
                     comment: diffPercentage > 0
                         ? 'Target verse is too long compared to source.'
@@ -172,13 +172,15 @@ export function checkChapterVerseIntegrity(source, target) {
     const issues = [];
     const sourceChapters = extractChapterVerses(source);
     const targetChapters = extractChapterVerses(target);
+    const sourceVerses = extractVerses(source);
+    const targetVerses = extractVerses(target);
 
-    function validateIntegrity(chapterVerses, textType) {
+    function validateIntegrity(chapterVerses, textType, verses) {
         const seen = new Set();
         let lastChapter = 0;
         let lastVerse;
 
-        for (let [chapter, verses] of Object.entries(chapterVerses)) {
+        for (let [chapter, versesInChapter] of Object.entries(chapterVerses)) {
             lastVerse = 0;
             chapter = parseInt(chapter, 10);
 
@@ -191,12 +193,13 @@ export function checkChapterVerseIntegrity(source, target) {
             }
             lastChapter = chapter;
 
-            for (const verse of verses) {
+            for (const verse of versesInChapter) {
                 if (verse < lastVerse) {
                     issues.push({
                         type: 'out_of_order',
                         chapter,
                         verse,
+                        verse_text: verses[`${chapter}:${verse}`],
                         comment: `${textType} has out-of-order verse ${verse} in chapter ${chapter}.`,
                     });
                 }
@@ -205,6 +208,7 @@ export function checkChapterVerseIntegrity(source, target) {
                         type: 'duplicate',
                         chapter,
                         verse,
+                        verse_text: verses[`${chapter}:${verse}`],
                         comment: `${textType} has duplicate verse ${verse} in chapter ${chapter}.`,
                     });
                 }
@@ -214,8 +218,8 @@ export function checkChapterVerseIntegrity(source, target) {
         }
     }
 
-    validateIntegrity(sourceChapters, 'Source');
-    validateIntegrity(targetChapters, 'Target');
+    // validateIntegrity(sourceChapters, 'Source', sourceVerses);
+    validateIntegrity(targetChapters, 'Target', targetVerses);
 
     return {
         check: 'chapter_verse_integrity',
@@ -233,6 +237,7 @@ export function detectMissingVerses(source, target) {
     const issues = [];
     const sourceChapters = extractChapterVerses(source);
     const targetChapters = extractChapterVerses(target);
+    const sourceVerses = extractVerses(source);
 
     for (const [chapter, verses] of Object.entries(sourceChapters)) {
         const targetVerses = targetChapters[chapter] || [];
@@ -242,6 +247,7 @@ export function detectMissingVerses(source, target) {
             issues.push({
                 chapter: parseInt(chapter, 10),
                 verse: missingVerse,
+                verse_text: sourceVerses[`${chapter}:${missingVerse}`],
                 comment: `Target is missing verse ${missingVerse} in chapter ${chapter}.`,
             });
         }
@@ -252,6 +258,7 @@ export function detectMissingVerses(source, target) {
         issues,
     };
 }
+
 
 /**
  * Detects consecutive repeated words and excessive whitespace in verses.
@@ -429,10 +436,6 @@ export function detectNumberMismatches(source, target) {
     const sourceVerses = extractVerses(source);
     const targetVerses = extractVerses(target);
 
-    console.log("sourceVerses", sourceVerses);
-    console.log("targetVerses", targetVerses);
-
-    // match whole numbers
     const numberRegex = /\b\d+\b/g;
 
     for (const [verseKey, sourceText] of Object.entries(sourceVerses)) {
@@ -450,13 +453,13 @@ export function detectNumberMismatches(source, target) {
         const sourceNumberSet = new Set(sourceNumbers.map(item => item.number));
         const targetNumberSet = new Set(targetNumbers.map(item => item.number));
 
-        // Identify missing and extra numbers
         const missingNumbers = [...sourceNumberSet].filter(num => !targetNumberSet.has(num));
         const extraNumbers = [...targetNumberSet].filter(num => !sourceNumberSet.has(num));
 
         if (missingNumbers.length > 0 || extraNumbers.length > 0) {
             issues.push({
                 verse: verseKey,
+                verse_text: sourceText,
                 missing_numbers: missingNumbers.map(num => ({
                     number: num,
                     position: sourceNumbers.find(item => item.number === num)?.position || -1
