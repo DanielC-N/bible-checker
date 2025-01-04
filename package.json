@@ -1,6 +1,6 @@
 {
   "name": "bible-checker",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "A bible tool to run several checks with a target translation and a source tranlation",
   "main": "dist/index.js",
   "type": "commonjs",
