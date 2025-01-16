@@ -135,47 +135,45 @@ export class USJHandler {
         let currentChapter = null;
         let currentVerse = null;
         let currentContent = '';
-        let inFootnoteOrXref = false;
 
-        this.traverse(this.usj.content, (item) => {
-            // Handle chapter marker
-            if (item.marker === 'c' && item.number) {
-                currentChapter = item.number;
-                currentVerse = null;
-                currentContent = '';
+        function traverse(content, inFootNote = false) {
+            // That's the odd recursion part
+            // But it's working that way
+            if (inFootNote) {
+                inFootNote = false;
+                return;
             }
-            // Handle verse marker
-            else if (item.marker === 'v' && item.number) {
-                if (currentChapter && currentVerse) {
-                    verses[`${currentChapter}:${currentVerse}`] = currentContent.trim();
-                }
-                currentVerse = item.number;
-                currentContent = '';
-            }
-            // Enter footnote or cross-reference marker
-            else if (item.marker === 'f' || item.marker === 'x') {
-                inFootnoteOrXref = true;
-            }
-            // Exit footnote or cross-reference marker
-            else if (inFootnoteOrXref && (item.marker === 'f*' || item.marker === 'x*')) {
-                inFootnoteOrXref = false;
-            }
-            // Add string content only if not in a footnote or cross-reference
-            else if (!inFootnoteOrXref && typeof item === 'string') {
-                if (!currentContent.endsWith(item)) {
+            for (const item of content) {
+                if (item.marker === 'f' || item.marker === 'x') {
+                    inFootNote = true;
+                } else if (item.marker === 'c' && item.number) {
+                    // New chapter: reset tracking
+                    currentChapter = item.number;
+                    currentVerse = null;
+                    currentContent = '';
+                } else if (item.marker === 'v' && item.number) {
+                    // New verse: store previous verse and reset content
+                    if (currentChapter && currentVerse) {
+                        verses[`${currentChapter}:${currentVerse}`] = currentContent.trim();
+                    }
+                    currentVerse = item.number;
+                    currentContent = '';
+                } else if (typeof item === 'string') {
+                    // Append plain strings directly
                     currentContent += item;
+                } else if (item.type === 'char' && Array.isArray(item.content)) {
+                    // Extract content from char markers
+                    currentContent += item.content.join('');
+                } else if (item.content) {
+                    // Recursively handle nested content
+                    traverse(item.content);
                 }
             }
-            // Add word content (type: "char") if not in a footnote or cross-reference
-            else if (!inFootnoteOrXref && item.type === 'char' && Array.isArray(item.content)) {
-                const charContent = item.content.join('');
-                if (!currentContent.endsWith(charContent)) {
-                    currentContent += charContent;
-                }
-            }
-        });
+        }
 
-        // Capture the final verse after traversal
+        traverse(this.usj.content);
+
+        // Save the last verse if it exists
         if (currentChapter && currentVerse) {
             verses[`${currentChapter}:${currentVerse}`] = currentContent.trim();
         }

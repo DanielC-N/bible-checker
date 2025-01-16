@@ -29,14 +29,21 @@ export function normalizeNumber(symbol) {
  * @returns {object} Map of verse IDs to their cleaned text content.
  */
 export function extractVerses(usj) {
+    // const handler = new USJHandler(usj);
     const verses = {};
     let currentChapter = null;
     let currentVerse = null;
     let currentContent = '';
 
-    function traverse(content) {
+    function traverse(content, inFootNote = false) {
+        if (inFootNote) {
+            inFootNote = false;
+            return;
+        }
         for (const item of content) {
-            if (item.marker === 'c' && item.number) {
+            if(item.marker === 'f' || item.marker === 'x') {
+                inFootNote = true;
+            } else if (item.marker === 'c' && item.number) {
                 // New chapter: reset tracking
                 currentChapter = item.number;
                 currentVerse = null;
@@ -122,6 +129,7 @@ export function detectShortLongVerses(source, target, threshold = 20) {
         // Detect empty source or target verses
         if (sourceLength === 0 && targetLength > 0) {
             issues.push({
+                type: 'empty',
                 verse: key,
                 source_length: sourceLength,
                 target_length: targetLength,
@@ -131,6 +139,7 @@ export function detectShortLongVerses(source, target, threshold = 20) {
             });
         } else if (sourceLength > 0 && targetLength === 0) {
             issues.push({
+                type: 'empty',
                 verse: key,
                 source_length: sourceLength,
                 target_length: targetLength,
@@ -144,6 +153,9 @@ export function detectShortLongVerses(source, target, threshold = 20) {
 
             if (Math.abs(diffPercentage) > threshold) {
                 issues.push({
+                    type: diffPercentage > 0
+                    ? 'long'
+                    : 'short',
                     verse: key,
                     source_length: sourceLength,
                     target_length: targetLength,
@@ -174,7 +186,6 @@ export function checkChapterVerseIntegrity(source, target) {
     const issues = [];
     // const sourceChapters = extractChapterVerses(source);
     const targetChapters = extractChapterVerses(target);
-    // const sourceVerses = extractVerses(source);
     const targetVerses = handler.extractVerses();
 
     function validateIntegrity(chapterVerses, textType, verses) {
@@ -248,6 +259,7 @@ export function detectMissingVerses(source, target) {
 
         for (const missingVerse of missingVerses) {
             issues.push({
+                type: 'missing',
                 chapter: parseInt(chapter, 10),
                 verse: missingVerse,
                 verse_text: sourceVerses[`${chapter}:${missingVerse}`],
@@ -271,7 +283,9 @@ export function detectMissingVerses(source, target) {
 export function detectRepeatedWordsAndWhitespace(target) {
     const handlerSrc = new USJHandler(target);
     const issues = [];
-    const targetVerses = handlerSrc.extractVerses();
+    const targetVerses = handlerSrc.extractVerses(target);
+
+    console.log(targetVerses);
 
     for (const [key, text] of Object.entries(targetVerses)) {
         const words = text.split(/\s+/);
@@ -487,28 +501,29 @@ export function detectNumberMismatches(source, target) {
 }
 
 /**
- * Detects if quoted text in footnotes exists in the target translation.
+ * Detects mismatches between quoted text (`fq`) in footnotes and the referenced verse content.
+ * Verifies that the quoted text (`fq`) exists within the corresponding verse in the target text.
  * @param {object} target - Parsed USJ JSON object of the target text.
- * @returns {object} Report of missing or unmatched quotations.
+ * @returns {object} Report of missing or unmatched quotations in footnotes.
  */
 export function detectFootnoteQuotes(target) {
     const handler = new USJHandler(target);
 
     const issues = [];
-    const verses = handler.extractVerses();
-    const footnotes = handler.extractFootnotes();
+    const verses = handler.extractVerses(); // Extract verses in the format { "chapter:verse": "text content" }
+    const footnotes = handler.extractFootnotes(); // Extract all footnotes with `fq` markers and their references
+
+    // console.log(verses);
 
     for (const { content, reference } of footnotes) {
-        const quotedTexts = handler.extractQuotedText(content);
+        const quotedTexts = handler.extractQuotedText(content); // Extract `fq` content from the footnote
 
         const unmatchedQuotes = [];
 
+        // Check if each `fq` quoted text exists in the referenced verse
         for (const quote of quotedTexts) {
-            const foundInVerses = Object.values(verses).some((verseContent) => {
-                return verseContent.includes(quote);
-            }
-            );
-            if (!foundInVerses) {
+            const verseContent = verses[reference];
+            if (!verseContent || !verseContent.includes(quote)) {
                 unmatchedQuotes.push(quote);
             }
         }
@@ -517,13 +532,13 @@ export function detectFootnoteQuotes(target) {
             issues.push({
                 verse: reference,
                 unmatched_quotes: unmatchedQuotes,
-                comment: `Quoted text not found in the main text: ${unmatchedQuotes.join(', ')}`,
+                comment: `Quoted text not found in the verse (${reference}): ${unmatchedQuotes.join(', ')}`,
             });
         }
     }
 
     return {
-        check: 'footnote_quotations',
+        check: 'footnote::quotation_mismatch',
         issues,
     };
 }

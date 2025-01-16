@@ -25,7 +25,7 @@
 | `textquality::unmatched_punctuation`     | Finds unmatched punctuation pairs such as quotes, parentheses, and brackets.    | `minor`   |
 | `chapterverse::missing_verses`           | Identifies verses that are missing in the target compared to the source text.   | `major`   |
 | `numbers_check::mismatches`              | Checks for mismatched numbers between the source and target text.               | `minor`   |
-| `textquality::unmatched_punctuation`     | Verifies the consistency of quoted text in footnotes against main text.         | `minor`   |
+| `footnote::quotation_mismatch`                 | Verifies the consistency of quoted text in footnotes against verse.         | `minor`   |
 
 
 ## Installation

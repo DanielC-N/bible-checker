@@ -76,7 +76,7 @@ export function getAvailableChecks() {
         {
             name: "footnote::quotation_mismatch",
             readName: "Unmatched footnote quotations",
-            description: "Detects footnote quotations that do not match the main text or are missing words.",
+            description: "Detects footnote quotations that do not match the verse or are missing words.",
             level: "minor",
             enabled: false,
         },

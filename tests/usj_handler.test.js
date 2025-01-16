@@ -20,14 +20,14 @@ describe('USJHandler Core Functionality Tests', () => {
         const totalChapters = handler.nbchapters();
 
         expect(totalChapters).toBeGreaterThan(0);
-        console.log(`Total Chapters: ${totalChapters}`);
+        // console.log(`Total Chapters: ${totalChapters}`);
     });
 
     test('Count total verses in USJ file', () => {
         const totalVerses = handler.nbverses();
 
         expect(totalVerses).toBeGreaterThan(0);
-        console.log(`Total Verses: ${totalVerses}`);
+        // console.log(`Total Verses: ${totalVerses}`);
     });
 
     test('Extract a specific verse', () => {
@@ -36,7 +36,7 @@ describe('USJHandler Core Functionality Tests', () => {
         expect(verseContent).toBeDefined();
         expect(typeof verseContent).toBe('string');
         expect(verseContent.length).toBeGreaterThan(0);
-        console.log('Verse 1:1 Content:', verseContent);
+        // console.log('Verse 1:1 Content:', verseContent);
     });
 
     test('Extract a range of verses', () => {
@@ -45,7 +45,7 @@ describe('USJHandler Core Functionality Tests', () => {
         expect(rangeContent).toBeDefined();
         expect(typeof rangeContent).toBe('string');
         expect(rangeContent.length).toBeGreaterThan(0);
-        console.log('Range 1:1-1:3 Content:', rangeContent);
+        // console.log('Range 1:1-1:3 Content:', rangeContent);
     });
 
     test('Extract a full chapter', () => {
@@ -54,7 +54,7 @@ describe('USJHandler Core Functionality Tests', () => {
         expect(chapterContent).toBeDefined();
         expect(typeof chapterContent).toBe('string');
         expect(chapterContent.length).toBeGreaterThan(0);
-        console.log('Chapter 1 Content:', chapterContent);
+        // console.log('Chapter 1 Content:', chapterContent);
     });
 
     test('Handle invalid chapter or verse', () => {
